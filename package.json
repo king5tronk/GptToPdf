@@ -8,13 +8,9 @@
   "scripts": {
     "build": "echo \"no build\"",
     "start": "vercel dev"
-{
+  },
   "dependencies": {
     "@sparticuz/chromium": "^126.0.0",
     "puppeteer-core": "^22.12.1"
-  },
-  "engines": {
-    "node": "22.x"
   }
 }
-
