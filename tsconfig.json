@@ -1,3 +1,12 @@
 {
-  "compilerOptions": { "target": "ES2020", "module": "ES2020", "moduleResolution": "Bundler", "esModuleInterop": true, "strict": false }
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ES2020",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2020", "DOM"],
+    "esModuleInterop": true,
+    "strict": false,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  }
 }
