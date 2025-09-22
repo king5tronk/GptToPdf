@@ -2,13 +2,10 @@
   "name": "chatgpt-share-to-pdf",
   "private": true,
   "type": "module",
+  "engines": { "node": "22.x" },
   "scripts": {
-    "dev": "vercel dev",
     "build": "echo \"no build\"",
     "start": "vercel dev"
-  },
-  "engines": {
-    "node": "22.x"
   },
   "dependencies": {
     "@sparticuz/chromium": "^123.0.1",
