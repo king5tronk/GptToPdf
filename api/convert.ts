@@ -14,6 +14,17 @@ const variants = (s: string) => {
   return [base + '/', base];
 };
 
+const sleep = (ms: number) => new Promise(res => setTimeout(res, ms));
+
+async function clickIfExists(page: puppeteer.Page, selector: string, timeout = 500) {
+  try {
+    const el = await page.waitForSelector(selector, { timeout });
+    if (el) await el.click();
+  } catch {
+    // ignore
+  }
+}
+
 export default async function handler(req: any, res: any) {
   // --- CORS ---
   const origin = req.headers.origin || '*';
@@ -28,7 +39,7 @@ export default async function handler(req: any, res: any) {
   if (!url || !isValidShare(url)) return res.status(400).send('Ogiltig delningslänk (måste börja med https://chatgpt.com/share/…)');
 
   try {
-    // Serverless Chromium
+    // Serverless Chromium (Puppeteer)
     chromium.setHeadlessMode = true;
     chromium.setGraphicsMode = false;
 
@@ -42,7 +53,7 @@ export default async function handler(req: any, res: any) {
 
     const page = await browser.newPage();
 
-    // Lite stealth för att undvika blockers
+    // Lite “stealth”
     await page.evaluateOnNewDocument(() => {
       Object.defineProperty(navigator, 'webdriver', { get: () => false });
       Object.defineProperty(navigator, 'languages', { get: () => ['sv-SE','sv','en-US','en'] });
@@ -68,7 +79,7 @@ export default async function handler(req: any, res: any) {
         await page.goto(u, { waitUntil: 'domcontentloaded', timeout: 120_000 });
         opened = true;
 
-        // Försök klicka bort popups
+        // Stäng cookies/toast (Puppeteer-style)
         for (const sel of [
           'button:has-text("Accept")',
           'button:has-text("I agree")',
@@ -76,10 +87,19 @@ export default async function handler(req: any, res: any) {
           'button:has-text("OK")',
           '[data-testid="toast-dismiss"] button'
         ]) {
-          try { await page.locator(sel).first().click({ timeout: 500 }); } catch {}
+          await clickIfExists(page, sel, 700);
         }
 
-        // Snabbscroll tills innehållet “syns”
+        // Expandera “visa mer”
+        await page.evaluate(() => {
+          const contains = (el: Element, labels: string[]) => labels.some(t => el.textContent && el.textContent.toLowerCase().includes(t));
+          const labels = ['show more','expand','visa mer','mer'];
+          const btns = Array.from(document.querySelectorAll('button, a[role="button"], [data-state]'));
+          btns.forEach(b => { try { if (contains(b, labels)) (b as any).click?.(); } catch {} });
+          document.querySelectorAll('details').forEach((d: any) => { try { d.open = true; } catch {} });
+        });
+
+        // Snabbscroll tills innehållet syns
         for (let i = 0; i < 120; i++) {
           const enough = await page.evaluate(() => {
             const qs = (s: string) => document.querySelectorAll(s).length;
@@ -94,7 +114,7 @@ export default async function handler(req: any, res: any) {
           });
           if (enough) break;
           await page.evaluate(() => window.scrollBy(0, 900));
-          await page.waitForTimeout(80);
+          await sleep(80);
         }
 
         // Skrapa DOM
@@ -133,7 +153,9 @@ export default async function handler(req: any, res: any) {
         });
 
         if (messages && messages.length) break;
-      } catch { /* prova nästa variant */ }
+      } catch {
+        // prova nästa variant
+      }
     }
 
     // Fallback: screenshot → PDF (garanterad)
@@ -163,6 +185,7 @@ export default async function handler(req: any, res: any) {
       <section class="turn ${esc(m.role)}">
         <div class="bubble"><div class="role">${esc(m.role)}</div><div class="content">${esc(m.content)}</div></div>
       </section>`).join('\n');
+
     const html = `<!doctype html><html lang="sv"><head><meta charset="utf-8"/>
       <meta name="viewport" content="width=device-width, initial-scale=1"/>
       <title>ChatGPT Share Export</title>
