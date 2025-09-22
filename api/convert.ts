@@ -16,6 +16,16 @@ const variants = (s: string) => {
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // --- CORS ---
+  const origin = req.headers.origin || '*';
+  res.setHeader('Access-Control-Allow-Origin', origin);
+  res.setHeader('Vary', 'Origin'); // så caches blir rätt
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end();
+  }
   if (req.method !== 'POST') return res.status(405).send('Use POST');
   const { url, format = 'A4', margin = 12, forceRaster = false } = req.body || {};
   if (!url || !isValidShare(url)) return res.status(400).send('Ogiltig delningslänk (måste börja med https://chatgpt.com/share/…)');
