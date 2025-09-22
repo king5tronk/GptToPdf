@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>ChatGPT Share → PDF</title>
+</head>
+<body style="font-family:system-ui;max-width:760px;margin:40px auto;padding:0 20px;">
+  <h1>ChatGPT Share → PDF</h1>
+  <p>Klistra in din share-länk och få en PDF.</p>
+  <form id="f">
+    <input type="url" name="url" placeholder="https://chatgpt.com/share/…" required style="width:100%;padding:12px;border:1px solid #ccc;border-radius:8px"/><br><br>
+    <label><input type="checkbox" name="forceRaster"> Garanterad export (bild-fallback)</label><br><br>
+    <button>Konvertera</button>
+  </form>
+  <script>
+    const API = 'https://DIN-VERCEL-APP.vercel.app/api/convert'; // <-- ändra när du deployat
+    document.getElementById('f').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target); const payload = Object.fromEntries(fd.entries());
+      payload.forceRaster = !!fd.get('forceRaster');
+      const r = await fetch(API, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+      if (!r.ok) { alert(await r.text()); return; }
+      const blob = await r.blob(); const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = 'chatgpt-conversation.pdf'; a.click();
+      URL.revokeObjectURL(url);
+    });
+  </script>
+</body>
+</html>
