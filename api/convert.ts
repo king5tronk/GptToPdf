@@ -17,7 +17,7 @@ const variants = (s: string) => {
 const sleep = (ms: number) => new Promise(res => setTimeout(res, ms));
 
 export default async function handler(req: any, res: any) {
-  // --- CORS ---
+  // CORS
   const origin = req.headers.origin || '*';
   res.setHeader('Access-Control-Allow-Origin', origin);
   res.setHeader('Vary', 'Origin');
@@ -34,7 +34,9 @@ export default async function handler(req: any, res: any) {
   try {
     chromium.setHeadlessMode = true;
     chromium.setGraphicsMode = false;
-    const executablePath = await chromium.executablePath('stable');
+
+    // ⬇️ FIX: inga argument här
+    const executablePath = await chromium.executablePath();
 
     const browser = await puppeteer.launch({
       args: chromium.args,
@@ -45,7 +47,7 @@ export default async function handler(req: any, res: any) {
 
     const page = await browser.newPage();
 
-    // Enkel stealth
+    // enkel stealth
     await page.evaluateOnNewDocument(() => {
       Object.defineProperty(navigator, 'webdriver', { get: () => false });
       Object.defineProperty(navigator, 'languages', { get: () => ['sv-SE','sv','en-US','en'] });
@@ -71,7 +73,7 @@ export default async function handler(req: any, res: any) {
         await page.goto(u, { waitUntil: 'domcontentloaded', timeout: 120_000 });
         opened = true;
 
-        // Scrolla tills det ser ut som konvo finns
+        // snabbscroll
         for (let i = 0; i < 120; i++) {
           const enough = await page.evaluate(() => {
             const qs = (s: string) => document.querySelectorAll(s).length;
@@ -89,7 +91,7 @@ export default async function handler(req: any, res: any) {
           await sleep(80);
         }
 
-        // Extrahera text
+        // scrape
         messages = await page.evaluate(() => {
           const out: Array<{ role: string; content: string }> = [];
           const textOf = (el: Element | null) =>
@@ -129,7 +131,7 @@ export default async function handler(req: any, res: any) {
       }
     }
 
-    // Fallback → screenshot om inga meddelanden
+    // fallback → screenshot
     if (!messages?.length || forceRaster) {
       if (!opened) { try { await page.goto(variants(url)[0], { waitUntil: 'load', timeout: 120_000 }); } catch {} }
       const png = await page.screenshot({ fullPage: true });
@@ -146,7 +148,7 @@ export default async function handler(req: any, res: any) {
       return res.end(pdf);
     }
 
-    // Bygg text-PDF
+    // text-PDF
     const esc = (s: string) =>
         s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;').replace(/'/g,'&#39;');
     const rows = messages.map(m => `

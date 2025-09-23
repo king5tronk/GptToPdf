@@ -2,7 +2,7 @@ import chromium from '@sparticuz/chromium';
 import puppeteer from 'puppeteer-core';
 
 export default async function handler(_req: any, res: any) {
-  // --- CORS ---
+  // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -11,7 +11,9 @@ export default async function handler(_req: any, res: any) {
   try {
     chromium.setHeadlessMode = true;
     chromium.setGraphicsMode = false;
-    const executablePath = await chromium.executablePath('stable');
+
+    // ⬇️ FIX: inga argument här
+    const executablePath = await chromium.executablePath();
 
     const browser = await puppeteer.launch({
       args: chromium.args,
