@@ -2,15 +2,13 @@
   "name": "chatgpt-share-to-pdf",
   "private": true,
   "type": "module",
-  "engines": {
-    "node": "22.x"
+  "engines": { "node": "20.x" },
+  "dependencies": {
+    "@sparticuz/chromium": "^126.0.0",
+    "puppeteer-core": "^22.12.1"
   },
   "scripts": {
     "build": "echo \"no build\"",
     "start": "vercel dev"
-  },
-  "dependencies": {
-    "@sparticuz/chromium": "^126.0.0",
-    "puppeteer-core": "^22.12.1"
   }
 }
