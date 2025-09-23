@@ -62,16 +62,11 @@
         <label for="u">Delningslänk</label>
         <input id="u" name="url" type="url" required inputmode="url" placeholder="https://chatgpt.com/share/…" />
         <div class="actions">
-          <label class="toggle" title="Om textblockering inträffar tar vi helsidesbild → PDF">
-            <input type="checkbox" id="force" name="forceRaster">
-            <span>Garanterad export (bild-fallback)</span>
-          </label>
           <button id="go" type="submit">Konvertera till PDF</button>
           <span id="status" class="hint"></span>
         </div>
       </form>
       <div class="footer">
-        Tips: Om länken är väldigt lång kan du <span class="kbd">Ctrl/⌘+V</span> direkt i rutan. Vi skickar bara till <span class="kbd">/api/convert</span>.
       </div>
     </section>
   </div>
