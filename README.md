@@ -1,7 +1,7 @@
 # ChatGPT Share → PDF
 
 En superenkel tjänst som konverterar **ChatGPT delningslänkar** (t.ex. `https://chatgpt.com/share/<id>`) till **PDF**. Perfekt för att spara konversationer eller ladda upp till *ChatGPT Projects* och andra verktyg.
-
+Länk uppe till höger eller här -->"https://gpt-to-pdf-sand.vercel.app/"
 ## ✨ Funktioner
 - Klistra in valfri **publik** ChatGPT-share-länk → få en **nedladdningsbar PDF**.
   - **Text- PDF** (DOM-scrape) när det går → sökbar text.
