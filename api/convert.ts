@@ -16,15 +16,6 @@ const variants = (s: string) => {
 
 const sleep = (ms: number) => new Promise(res => setTimeout(res, ms));
 
-async function clickIfExists(page: puppeteer.Page, selector: string, timeout = 500) {
-  try {
-    const el = await page.waitForSelector(selector, { timeout });
-    if (el) await el.click();
-  } catch {
-    // ignore
-  }
-}
-
 export default async function handler(req: any, res: any) {
   // --- CORS ---
   const origin = req.headers.origin || '*';
@@ -36,16 +27,17 @@ export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') return res.status(405).send('Use POST');
 
   const { url, format = 'A4', margin = 12, forceRaster = false } = req.body || {};
-  if (!url || !isValidShare(url)) return res.status(400).send('Ogiltig delningslänk (måste börja med https://chatgpt.com/share/…)');
+  if (!url || !isValidShare(url)) {
+    return res.status(400).send('Ogiltig delningslänk (måste börja med https://chatgpt.com/share/…).');
+  }
 
   try {
-    // Serverless Chromium (Puppeteer)
     chromium.setHeadlessMode = true;
     chromium.setGraphicsMode = false;
+    const executablePath = await chromium.executablePath('stable');
 
-    const executablePath = await chromium.executablePath();
     const browser = await puppeteer.launch({
-      args: [...chromium.args, '--disable-blink-features=AutomationControlled'],
+      args: chromium.args,
       defaultViewport: { width: 1260, height: 900, deviceScaleFactor: 1.25 },
       executablePath,
       headless: chromium.headless
@@ -53,7 +45,7 @@ export default async function handler(req: any, res: any) {
 
     const page = await browser.newPage();
 
-    // Lite “stealth”
+    // Enkel stealth
     await page.evaluateOnNewDocument(() => {
       Object.defineProperty(navigator, 'webdriver', { get: () => false });
       Object.defineProperty(navigator, 'languages', { get: () => ['sv-SE','sv','en-US','en'] });
@@ -79,27 +71,7 @@ export default async function handler(req: any, res: any) {
         await page.goto(u, { waitUntil: 'domcontentloaded', timeout: 120_000 });
         opened = true;
 
-        // Stäng cookies/toast (Puppeteer-style)
-        for (const sel of [
-          'button:has-text("Accept")',
-          'button:has-text("I agree")',
-          'button:has-text("Got it")',
-          'button:has-text("OK")',
-          '[data-testid="toast-dismiss"] button'
-        ]) {
-          await clickIfExists(page, sel, 700);
-        }
-
-        // Expandera “visa mer”
-        await page.evaluate(() => {
-          const contains = (el: Element, labels: string[]) => labels.some(t => el.textContent && el.textContent.toLowerCase().includes(t));
-          const labels = ['show more','expand','visa mer','mer'];
-          const btns = Array.from(document.querySelectorAll('button, a[role="button"], [data-state]'));
-          btns.forEach(b => { try { if (contains(b, labels)) (b as any).click?.(); } catch {} });
-          document.querySelectorAll('details').forEach((d: any) => { try { d.open = true; } catch {} });
-        });
-
-        // Snabbscroll tills innehållet syns
+        // Scrolla tills det ser ut som konvo finns
         for (let i = 0; i < 120; i++) {
           const enough = await page.evaluate(() => {
             const qs = (s: string) => document.querySelectorAll(s).length;
@@ -117,7 +89,7 @@ export default async function handler(req: any, res: any) {
           await sleep(80);
         }
 
-        // Skrapa DOM
+        // Extrahera text
         messages = await page.evaluate(() => {
           const out: Array<{ role: string; content: string }> = [];
           const textOf = (el: Element | null) =>
@@ -132,7 +104,6 @@ export default async function handler(req: any, res: any) {
                 n.getAttribute('data-message-author-role') ||
                 n.getAttribute('data-author') ||
                 n.getAttribute('data-role') ||
-                (n.querySelector('[data-message-author-role]') as HTMLElement)?.getAttribute('data-message-author-role') ||
                 'assistant';
 
             let content = '';
@@ -158,7 +129,7 @@ export default async function handler(req: any, res: any) {
       }
     }
 
-    // Fallback: screenshot → PDF (garanterad)
+    // Fallback → screenshot om inga meddelanden
     if (!messages?.length || forceRaster) {
       if (!opened) { try { await page.goto(variants(url)[0], { waitUntil: 'load', timeout: 120_000 }); } catch {} }
       const png = await page.screenshot({ fullPage: true });
@@ -168,17 +139,14 @@ export default async function handler(req: any, res: any) {
       </style></head><body><img src="data:image/png;base64,${b64}"/></body></html>`;
       await page.setContent(html, { waitUntil: 'load' });
       await page.emulateMediaType('screen');
-      const pdf = await page.pdf({
-        format: (format === 'Letter' ? 'Letter' : 'A4'),
-        printBackground: true, preferCSSPageSize: false, displayHeaderFooter: false
-      });
+      const pdf = await page.pdf({ format, printBackground: true });
       await browser.close();
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', 'attachment; filename="chatgpt-conversation.pdf"');
       return res.end(pdf);
     }
 
-    // Text-PDF
+    // Bygg text-PDF
     const esc = (s: string) =>
         s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;').replace(/'/g,'&#39;');
     const rows = messages.map(m => `
@@ -187,10 +155,8 @@ export default async function handler(req: any, res: any) {
       </section>`).join('\n');
 
     const html = `<!doctype html><html lang="sv"><head><meta charset="utf-8"/>
-      <meta name="viewport" content="width=device-width, initial-scale=1"/>
-      <title>ChatGPT Share Export</title>
       <style>
-        body{font-family: ui-sans-serif, system-ui, Segoe UI, Roboto, Arial; margin:0; padding:24px;}
+        body{font-family: system-ui, sans-serif; margin:0; padding:24px;}
         .turn{margin:0 0 16px;}
         .bubble{border:1px solid #e5e7eb;border-radius:16px;padding:16px;}
         .turn.user .bubble{background:#f9fafb}
@@ -205,10 +171,7 @@ export default async function handler(req: any, res: any) {
 
     await page.setContent(html, { waitUntil: 'load' });
     await page.emulateMediaType('screen');
-    const pdf = await page.pdf({
-      format: (format === 'Letter' ? 'Letter' : 'A4'),
-      printBackground: true, preferCSSPageSize: false, displayHeaderFooter: false
-    });
+    const pdf = await page.pdf({ format, printBackground: true });
     await browser.close();
 
     res.setHeader('Content-Type', 'application/pdf');
@@ -216,7 +179,6 @@ export default async function handler(req: any, res: any) {
     return res.end(pdf);
 
   } catch (e: any) {
-    console.error(e);
-    return res.status(500).send('Serverless-körning misslyckades.');
+    return res.status(500).json({ ok: false, error: e?.message || String(e), stack: e?.stack });
   }
 }

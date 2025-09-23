@@ -2,7 +2,7 @@ import chromium from '@sparticuz/chromium';
 import puppeteer from 'puppeteer-core';
 
 export default async function handler(_req: any, res: any) {
-  // CORS (så du kan öppna i webbläsaren direkt om du vill)
+  // --- CORS ---
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -11,17 +11,20 @@ export default async function handler(_req: any, res: any) {
   try {
     chromium.setHeadlessMode = true;
     chromium.setGraphicsMode = false;
-    const executablePath = await chromium.executablePath();
+    const executablePath = await chromium.executablePath('stable');
+
     const browser = await puppeteer.launch({
-      args: [...chromium.args, '--disable-blink-features=AutomationControlled'],
-      defaultViewport: { width: 1024, height: 768, deviceScaleFactor: 1.25 },
+      args: chromium.args,
+      defaultViewport: { width: 1024, height: 768 },
       executablePath,
       headless: chromium.headless
     });
+
     const page = await browser.newPage();
     await page.goto('https://example.com', { waitUntil: 'domcontentloaded', timeout: 30_000 });
     const title = await page.title();
     await browser.close();
+
     return res.status(200).json({ ok: true, executablePath, title });
   } catch (e: any) {
     return res.status(500).json({ ok: false, error: e?.message || String(e), stack: e?.stack });
